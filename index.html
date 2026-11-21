@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Nocturne — Figure Gallery</title>
+<style>
+:root{--ink:#17131f;--paper:#f3ead8;--gold:#c6a46a;--rose:#b86c78}
+*{box-sizing:border-box}body{margin:0;background:#17131f;color:#eee;font-family:Georgia,serif;overflow:hidden;touch-action:none}
+#app{height:100dvh;display:grid;grid-template-rows:74px 1fr 92px;background:radial-gradient(circle at 50% 35%,#30283e 0,#201a2b 58%,#15121d 100%)}
+header{display:flex;align-items:center;justify-content:space-between;padding:0 clamp(16px,4vw,54px);border-bottom:1px solid #ffffff12}
+.brand{letter-spacing:.18em;font-size:13px;text-transform:uppercase}.brand b{display:block;font-size:24px;letter-spacing:.04em;color:#f4dfaf}
+.stats{display:flex;gap:26px;text-align:center}.stat small{display:block;font:10px sans-serif;text-transform:uppercase;letter-spacing:.16em;color:#b4aabd}.stat strong{font-size:18px;color:#e7c988}
+main{position:relative;display:flex;align-items:center;justify-content:center;gap:clamp(18px,4vw,70px);min-height:0;padding:12px}
+#stage{position:relative;width:min(58vh,620px);aspect-ratio:1;border:1px solid #d6bd8733;padding:12px;background:#0e0c13;box-shadow:0 24px 70px #0009}
+#canvas{width:100%;height:100%;display:block}
+.side{width:min(230px,20vw);text-align:center}.side h1{font-size:clamp(20px,2.2vw,32px);font-weight:400;margin:0 0 10px}.side p{font:12px/1.7 sans-serif;color:#bdb3c5;margin:0 0 20px}.palette{display:flex;justify-content:center;gap:8px}.swatch{width:38px;height:38px;border:1px solid #fff2;border-radius:50%;cursor:pointer;transition:.2s}.swatch.active{transform:scale(.8);outline:2px solid #f2d49a;outline-offset:4px}
+footer{display:flex;align-items:center;justify-content:center;border-top:1px solid #ffffff12;gap:14px}.tool{width:58px;height:58px;border:1px solid #fff2;border-radius:50%;background:#262131;color:#ddd;cursor:pointer;font-size:18px}.tool.active{background:#c6a46a;color:#17131f}.tool small{display:block;font:8px sans-serif;margin-top:2px}.hint{position:absolute;bottom:105px;left:50%;transform:translateX(-50%);font:11px sans-serif;color:#aaa0b1;letter-spacing:.08em}
+#toast{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.9);opacity:0;pointer-events:none;width:260px;text-align:center;background:#17131ff2;border:1px solid #c6a46a;padding:25px;transition:.35s;z-index:5}#toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}#toast h2{margin:0 0 8px;color:#f1d99e}#toast p{font:12px sans-serif;color:#c7becc}.next{margin-top:15px;border:0;background:#c6a46a;padding:10px 18px;font:10px sans-serif;text-transform:uppercase;letter-spacing:.12em;cursor:pointer}
+@media(max-width:700px){#app{grid-template-rows:62px 1fr 82px}.stats{gap:12px}.stat strong{font-size:14px}main{align-items:center}.side{position:absolute;left:12px;right:12px;bottom:6px;width:auto;pointer-events:none}.side h1,.side p{display:none}.palette{pointer-events:auto}.swatch{width:34px;height:34px;background-blend-mode:multiply}#stage{width:min(82vw,62vh);padding:7px}.tool{width:50px;height:50px}.hint{display:none}}
+</style>
+</head>
+<body><div id="app">
+<header><div class="brand"><b>NOCTURNE</b> Figure Gallery</div><div class="stats"><div class="stat"><small>Level</small><strong id="level">I</strong></div><div class="stat"><small>Restored</small><strong id="score">0%</strong></div></div></header>
+<main><div id="stage"><canvas id="canvas"></canvas></div><aside class="side"><h1 id="title">Study in Ochre</h1><p id="description">Return each brushstroke to its place.<br>Match the shadow and form.</p><div class="palette" id="palette"></div></aside><div class="hint">DRAG PIECES · TAP TO ROTATE · DOUBLE-TAP TO FLIP</div></main>
+<footer><button class="tool active" id="move" title="Move">✦<small>MOVE</small></button><button class="tool" id="reset" title="Reset">↺<small>RESET</small></button></footer>
+</div><div id="toast"><h2>Study restored</h2><p id="toastText">The gallery remembers its shape.</p><button class="next" id="next">Next study</button></div>
+<script>
+const canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d'),stage=document.getElementById('stage');
+let size=600,grid=4,level=0,score=0,active=-1,tool='move',pieces=[],drag=null,lastTap=0;
+const palettes=[['#2b202a','#b68a64','#e1c49a','#7e4f50','#9d7e62'],['#18242b','#d0ad87','#9bb1af','#6d4146','#c78b76'],['#34252d','#e2bd8b','#8f6f84','#a4a076','#6b5058']];
+function resize(){const r=canvas.getBoundingClientRect(),d=devicePixelRatio||1;canvas.width=r.width*d;canvas.height=r.height*d;size=r.width;ctx.setTransform(d,0,0,d,0,0);draw()}
+function init(){pieces=[];grid=4;for(let y=0;y<grid;y++)for(let x=0;x<grid;x++){pieces.push({x,y,tx:x,ty:y,r:[0,1,2,3][Math.floor(Math.random()*4)],placed:false})}pieces.forEach(p=>{if(Math.random()<.15)p.placed=true});shufflePieces();buildPalette();active=-1;updateScore();draw()}
+function shufflePieces(){const spots=[];for(let y=0;y<grid;y++)for(let x=0;x<grid;x++)spots.push({x,y});spots.sort(()=>Math.random-.5);pieces.forEach((p,i)=>{p.tx=spots[i].x;p.ty=spots[i].y;p.placed=false})}
+function buildPalette(){const el=document.getElementById('palette');el.innerHTML='';palettes[level%3].slice(1).forEach((c,i)=>{const b=document.createElement('button');b.className='swatch'+(i===0?' active':'');b.style.background=c;b.onclick=()=>{document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('active'));b.classList.add('active')};el.appendChild(b)})}
+function pos(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+function draw(){if(!canvas.width)return;const w=size,h=size,c=palettes[level%3];ctx.clearRect(0,0,w,h);ctx.fillStyle=c[0];ctx.fillRect(0,0,w,h);ctx.save();ctx.beginPath();ctx.rect(0,0,w,h);ctx.clip();drawFigure(w,h,c);ctx.restore();ctx.fillStyle='#d7c49b22';for(let i=1;i<grid;i++){ctx.fillRect(i*w/grid-1,0,2,h);ctx.fillRect(0,i*h/grid-1,w,2)};pieces.forEach((p,i)=>{if(p.placed)return;drawPiece(p,i,c)})}
+function drawFigure(w,h,c){ctx.save();ctx.translate(w/2,h/2);ctx.scale(w/600,h/600);ctx.fillStyle=c[1];ctx.beginPath();ctx.arc(0,-145,82,0,Math.PI*2);ctx.fill();ctx.fillStyle=c[2];ctx.beginPath();ctx.moveTo(-50,-75);ctx.bezierCurveTo(-120,-20,-145,145,-170,245);ctx.lineTo(170,245);ctx.bezierCurveTo(145,145,120,-20,50,-75);ctx.closePath();ctx.fill();ctx.fillStyle=c[3];ctx.beginPath();ctx.ellipse(-23,-150,22,13,0,0,Math.PI*2);ctx.fill();ctx.fillStyle=c[4];ctx.beginPath();ctx.arc(-5,-142,18,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#ffffff55';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(-35,-55);ctx.bezierCurveTo(-80,20,-95,115,-130,190);ctx.stroke();ctx.restore()}
+function drawPiece(p,i,c){const w=size/grid;if(p.placed)return;ctx.save();ctx.translate((p.tx+.5)*w,(p.ty+.5)*w);ctx.rotate(p.r*Math.PI/2);ctx.beginPath();ctx.rect(-w/2+4,-w/2+4,w-8,w-8);ctx.clip();ctx.translate(-w/2,-w/2);ctx.translate(-p.x*w,-p.y*w);ctx.fillStyle=c[0];ctx.fillRect(p.x*w,p.y*w,w*2,w*2);ctx.save();ctx.beginPath();ctx.rect(p.x*w,p.y*w,w,w);ctx.clip();ctx.translate(w/2,h?0:0);ctx.restore();ctx.restore();drawOverlay(p,i,w)}
+function h(){return size}
+function drawOverlay(p,i,w){ctx.save();ctx.translate((p.tx+.5)*w,(p.ty+.5)*w);ctx.rotate(p.r*Math.PI/2);ctx.beginPath();ctx.rect(-w/2+3,-w/2+3,w-6,w-6);ctx.clip();ctx.fillStyle='rgba(25,20,32,.15)';ctx.fillRect(-w/2,-w/2,w,w);ctx.translate(-w/2,-w/2);ctx.translate(-p.x*w,-p.y*w);drawFigure(size,size,palettes[level%3]);ctx.restore()}
+canvas.onpointerdown=e=>{e.preventTarget?.();const p=pos(e),gx=Math.floor(p.x/(size/grid)),gy=Math.floor(p.y/(size/grid));active=pieces.findIndex(q=>!q.placed&&q.tx===gx&&q.ty===gy);if(active<0)return;const now=Date.now();if(now-lastTap<260){pieces[active].r=(pieces[active].r+1)%4;lastTap=0}else lastTap=now;drag={dx:p.x-pieces[active].tx*size/grid,dy:p.y-pieces[active].ty*size/grid,moved:false};canvas.setPointerCapture(e.pointerId)};
+canvas.onpointermove=e=>{if(active<0||!drag)return;const p=pos(e);pieces[active].tx=Math.floor((p.x-drag.dx)/(size/grid));pieces[active].ty=Math.floor((p.y-drag.dy)/(size/grid));pieces[active].tx=Math.max(0,Math.min(grid-1,pieces[active].tx));pieces[active].ty=Math.max(0,Math.min(grid-1,pieces[active].ty));drag.moved=true;draw()};
+canvas.onpointerup=e=>{if(active<0)return;if(!drag.moved)pieces[active].r=(pieces[active].r+1)%4;checkPlace(pieces[active]);active=-1;drag=null;draw();updateScore()};
+function checkPlace(p){if(p.tx===p.x&&p.ty===p.y&&p.r===0){p.placed=true;const done=pieces.every(q=>q.placed);if(done)setTimeout(win,350)}}
+function updateScore(){const n=pieces.filter(p=>p.placed).length;score=Math.round(n/pieces.length*100);document.getElementById('score').textContent=score+'%'}
+function win(){document.getElementById('toastText').textContent=level===2?'The complete collection is restored.':'The gallery remembers another shape.';document.getElementById('toast').classList.add('show')}
+document.getElementById('next').onclick=()=>{level=(level+1)%3;document.getElementById('toast').classList.remove('show');document.getElementById('level').textContent=['I','II','III'][level];document.getElementById('title').textContent=['Study in Ochre','Portrait in Blue','Silhouette at Dusk'][level];init()};document.getElementById('reset').onclick=()=>{init();document.getElementById('toast').classList.remove('show')};
+window.addEventListener('resize',resize);init();requestAnimationFrame(resize);
+</script></body></html>
